@@ -1,6 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 
-import { View, Image } from 'react-native';
+import { StyleSheet, View, Image } from 'react-native';
 
 export default class Sprite extends Component {
 
@@ -11,9 +11,10 @@ export default class Sprite extends Component {
     scale: PropTypes.number,
     src: PropTypes.number,
     state: PropTypes.number,
-    steps: PropTypes.array,
-    style: PropTypes.object,
-    ticksPerFrame: PropTypes.number,
+    frameCounts: PropTypes.array,
+    startFrame: PropTypes.number,
+    frameDuration: PropTypes.number,
+    style: View.propTypes.style,
     tileHeight: PropTypes.number,
     tileWidth: PropTypes.number,
   };
@@ -24,8 +25,9 @@ export default class Sprite extends Component {
     repeat: true,
     src: '',
     state: 0,
-    steps: [],
-    ticksPerFrame: 4,
+    frameCounts: [],
+    startFrame: 0,
+    frameDuration: 125,
     tileHeight: 64,
     tileWidth: 64,
   };
@@ -39,11 +41,11 @@ export default class Sprite extends Component {
     super(props);
 
     this.loopID = null;
-    this.tickCount = 0;
     this.finished = false;
+    this.lastTick = null;
 
     this.state = {
-      currentStep: 0,
+      currentFrame: props.startFrame,
     };
   }
 
@@ -58,10 +60,10 @@ export default class Sprite extends Component {
       this.finished = false;
       this.props.onPlayStateChanged(1);
       this.context.loop.unsubscribe(this.loopID);
-      this.tickCount = 0;
+      this.lastTick = null;
 
       this.setState({
-        currentStep: 0,
+        currentFrame: nextProps.startFrame,
       }, () => {
         const animate = this.animate.bind(this, nextProps);
         this.loopID = this.context.loop.subscribe(animate);
@@ -73,68 +75,94 @@ export default class Sprite extends Component {
     this.context.loop.unsubscribe(this.loopID);
   }
 
-  animate(props) {
-    const { repeat, ticksPerFrame, state, steps } = props;
+  animate(props, tick) {
+    const { repeat, state, frameCounts, frameDuration } = props;
 
-    if (this.tickCount === ticksPerFrame && !this.finished) {
-      if (steps[state] !== 0) {
-        const { currentStep } = this.state;
-        const lastStep = steps[state];
-        const nextStep = currentStep === lastStep ? 0 : currentStep + 1;
-
-        this.setState({
-          currentStep: nextStep,
-        });
-
-        if (currentStep === lastStep && repeat === false) {
-          this.finished = true;
-          this.props.onPlayStateChanged(0);
-        }
-      }
-
-      this.tickCount = 0;
-    } else {
-      this.tickCount++;
+    if (!this.lastTick) {
+      this.lastTick = tick;
     }
 
-  }
+    const frameCount = frameCounts[state];
+    if (frameCount === 0 || this.finished) {
+      return;
+    }
 
-  getImageStyles() {
-    const { currentStep } = this.state;
-    const { state, tileWidth, tileHeight } = this.props;
+    const deltaTime = tick - this.lastTick;
+    const frame = Math.floor(deltaTime / frameDuration);
+    const nextFrame = frame % frameCount;
+    const { currentFrame } = this.state;
+    if (currentFrame !== nextFrame) {
+      this.setState({
+        currentFrame: nextFrame,
+      });
 
-    const left = this.props.offset[0] + (currentStep * tileWidth);
-    const top = this.props.offset[1] + (state * tileHeight);
-
-    return {
-      position: 'absolute',
-      transform: [
-        { translateX: left * -1 },
-        { translateY: top * -1 }
-      ]
-    };
-  }
-
-  getWrapperStyles() {
-    const scale = this.props.scale || this.context.scale;
-    return {
-      height: this.props.tileHeight,
-      width: this.props.tileWidth,
-      overflow: 'hidden',
-      position: 'relative',
-      transform: [{scale: scale}]
-    };
+      if (frame >= (frameCount - 1) && repeat === false) {
+        this.finished = true;
+        this.props.onPlayStateChanged(0);
+      }
+    }
   }
 
   render() {
+    const scale = this.props.scale || this.context.scale;
+    const { currentFrame } = this.state;
+    const {
+      style,
+      offset,
+      state,
+      tileWidth,
+      tileHeight,
+    } = this.props;
+    const containerStyles = [
+      styles.container,
+      {
+        width: tileWidth * scale,
+        height: tileHeight * scale,
+      },
+      style,
+    ];
+    const spriteStyles = [
+      styles.sprite,
+      {
+        width: tileWidth,
+        height: tileHeight,
+        transform: [{scale: scale}]
+      }
+    ];
+    const left = offset[0] + (currentFrame * tileWidth);
+    const top = offset[1] + (state * tileHeight);
+    const imageStyles = [
+      styles.image,
+      {
+        transform: [
+          { translateX: left * -1 },
+          { translateY: top * -1 }
+        ]
+      }
+    ];
     return (
-      <View style={{ ...this.getWrapperStyles(), ...this.props.style }}>
-        <Image
-          style={this.getImageStyles()}
-          source={this.props.src}
-        />
+      <View style={containerStyles}>
+        <View style={spriteStyles}>
+          <Image
+            style={imageStyles}
+            source={this.props.src}
+          />
+        </View>
       </View>
     );
   }
 
 }
+
+export const styles = StyleSheet.create({
+  container: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sprite: {
+    overflow: 'hidden',
+  },
+  image: {
+    position: 'absolute',
+  },
+});
