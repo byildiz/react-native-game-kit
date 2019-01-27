@@ -1,16 +1,8 @@
-<h1 align="center">react-native-game-kit</h1>
+# react-native-game-kit
 
-<h4 align="center">
-  Make games with React Native!
-</h4>
+Make games with React Native!
 
 ***
-
-<!-- MarkdownTOC depth=3 autolink=true bracket=round -->
-
-
-<!-- /MarkdownTOC -->
-
 
 ## Install
 
@@ -87,16 +79,6 @@ Using a ref you can obtain a reference to the physics body and modify its proper
 ### Next Steps
 
 Once this general structure is established, what follows usually depends on what kind of game you intend to make. Check out the API documentation below for further clarity regarding use of these components.
-
-## React Native
-
-Using this library with React Native is a simple as importing from the native directory:
-
-```js
-import { Loop, Stage, ...etc } from 'react-game-kit/native';
-```
-
-> Note: AudioPlayer and KeyListener are not implemented on the React Native version.
 
 ## API
 
